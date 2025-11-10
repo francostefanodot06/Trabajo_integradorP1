@@ -6,9 +6,6 @@ RUTA_CSV = os.path.join(BASE_DIR, "data", "paises.csv")
 
 
 
-# Crea la carpeta en caso de no existir:
-os.makedirs("data", exist_ok=True)
-
 # -----------------------------
 # FUNCIONES DE ARCHIVOS
 # -----------------------------
