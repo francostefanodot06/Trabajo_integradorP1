@@ -1,7 +1,11 @@
 import csv
 import os
 
-RUTA_CSV = "data/paises.csv"
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+RUTA_CSV = os.path.join(BASE_DIR, "data", "paises.csv")
+
+os.makedirs(os.path.join(BASE_DIR, "data"), exist_ok=True)
+
 
 # Crea la carpeta en caso de no existir:
 os.makedirs("data", exist_ok=True)
