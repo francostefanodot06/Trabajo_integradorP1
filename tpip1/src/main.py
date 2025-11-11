@@ -1,10 +1,19 @@
 import csv
 import os
+import unicodedata
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RUTA_CSV = os.path.join(BASE_DIR, "data", "paises.csv")
 
+# -----------------------------
+# FUNCIONES DE NORMALIZACIÓN
+# -----------------------------
 
+def normalizar(texto):
+    texto = texto.strip().lower()
+    texto = unicodedata.normalize("NFD", texto).encode("ascii", "ignore").decode("utf-8")
+    texto = " ".join(texto.split())  
+    return texto
 
 # -----------------------------
 # FUNCIONES DE ARCHIVOS
@@ -20,7 +29,6 @@ def cargar_paises():
     with open(RUTA_CSV, "r", encoding="utf-8") as archivo:
         lector = csv.DictReader(archivo)
         for fila in lector:
-            # Validación numérica sin try-except
             if fila["poblacion"].isdigit() and fila["superficie"].isdigit():
                 fila["poblacion"] = int(fila["poblacion"])
                 fila["superficie"] = int(fila["superficie"])
@@ -44,14 +52,19 @@ def guardar_paises(paises):
 def agregar_pais(paises):
     print("\n--- AGREGAR PAÍS ---")
 
-    nombre = " ".join(input("Nombre del país: ").strip().split())
+    nombre = normalizar(input("Nombre del país: "))
     poblacion = input("Población: ").strip()
     superficie = input("Superficie (km²): ").strip()
-    continente = " ".join(input("Continente: ").strip().split())
+    continente = normalizar(input("Continente: "))
 
     if not nombre or not continente or not poblacion.isdigit() or not superficie.isdigit():
         print("⚠️ Datos inválidos.")
         return
+
+    for pais in paises:
+        if normalizar(pais["nombre"]) == nombre:
+            print("⚠️ Ese país ya existe en la base de datos.")
+            return
 
     paises.append({
         "nombre": nombre,
@@ -67,18 +80,20 @@ def agregar_pais(paises):
 def actualizar_pais(paises):
     print("\n--- ACTUALIZAR PAÍS ---")
 
-    nombre = input("Ingrese el nombre del país a actualizar: ").strip().lower()
+    nombre = normalizar(input("Ingrese el nombre del país a actualizar: "))
 
     for pais in paises:
-        if pais["nombre"].lower() == nombre:
+        if normalizar(pais["nombre"]) == nombre:
             nueva_p = input("Nueva población (enter para no cambiar): ").strip()
             nueva_s = input("Nueva superficie (enter para no cambiar): ").strip()
+            nuevo_c = input("Nuevo continente (enter para no cambiar): ").strip()
 
-            if nueva_p and nueva_p.isdigit():
+            if nueva_p.isdigit():
                 pais["poblacion"] = int(nueva_p)
-
-            if nueva_s and nueva_s.isdigit():
+            if nueva_s.isdigit():
                 pais["superficie"] = int(nueva_s)
+            if nuevo_c:
+                pais["continente"] = normalizar(nuevo_c)
 
             guardar_paises(paises)
             print("✅ País actualizado.")
@@ -89,15 +104,12 @@ def actualizar_pais(paises):
 
 def buscar_pais(paises):
     print("\n--- BUSCAR PAÍS ---")
-    nombre = input("Ingrese nombre o parte del nombre: ").strip().lower()
+    nombre = normalizar(input("Ingrese nombre o parte del nombre: "))
 
-    resultados = []
-    for p in paises:
-        if nombre in p["nombre"].lower():
-            resultados.append(p)
+    encontrados = [p for p in paises if nombre in normalizar(p["nombre"])]
 
-    if resultados:
-        for pais in resultados:
+    if encontrados:
+        for pais in encontrados:
             print(f"{pais['nombre']} | Población: {pais['poblacion']} | Superficie: {pais['superficie']} | Continente: {pais['continente']}")
     else:
         print("⚠️ No se encontraron coincidencias.")
@@ -111,8 +123,8 @@ def filtrar_paises(paises):
     opc = input("Elija una opción: ")
 
     if opc == "1":
-        cont = input("Ingrese continente: ").strip().lower()
-        filtrados = [p for p in paises if p["continente"].lower() == cont]
+        cont = normalizar(input("Ingrese continente: "))
+        filtrados = [p for p in paises if normalizar(p["continente"]) == cont]
 
     elif opc == "2":
         min_p = input("Población mínima: ").strip()
@@ -150,12 +162,18 @@ def ordenar_paises(paises):
     print("3) Superficie")
     opcion = input("Elija una opción: ")
 
+    print("a) Ascendente")
+    print("b) Descendente")
+    sentido = input("Elija sentido: ")
+
+    reverso = True if sentido.lower() == "b" else False
+
     if opcion == "1":
-        paises.sort(key=lambda x: x["nombre"])
+        paises.sort(key=lambda x: normalizar(x["nombre"]), reverse=reverso)
     elif opcion == "2":
-        paises.sort(key=lambda x: x["poblacion"])
+        paises.sort(key=lambda x: x["poblacion"], reverse=reverso)
     elif opcion == "3":
-        paises.sort(key=lambda x: x["superficie"])
+        paises.sort(key=lambda x: x["superficie"], reverse=reverso)
     else:
         print("⚠️ Opción inválida.")
         return
@@ -167,26 +185,22 @@ def ordenar_paises(paises):
 def mostrar_estadisticas(paises):
     print("\n--- ESTADÍSTICAS ---")
 
-    mayor = paises[0]
-    menor = paises[0]
+    mayor = max(paises, key=lambda p: p["poblacion"])
+    menor = min(paises, key=lambda p: p["poblacion"])
 
-    total_p = 0
-    total_s = 0
+    total_p = sum(p["poblacion"] for p in paises)
+    total_s = sum(p["superficie"] for p in paises)
+
     conteo = {}
-
     for p in paises:
-        total_p += p["poblacion"]
-        total_s += p["superficie"]
-        if p["poblacion"] > mayor["poblacion"]:
-            mayor = p
-        if p["poblacion"] < menor["poblacion"]:
-            menor = p
-        conteo[p["continente"]] = conteo.get(p["continente"], 0) + 1
+        cont = p["continente"]
+        conteo[cont] = conteo.get(cont, 0) + 1
 
     print(f"Mayor población: {mayor['nombre']} ({mayor['poblacion']})")
     print(f"Menor población: {menor['nombre']} ({menor['poblacion']})")
     print(f"Promedio de población: {total_p // len(paises)}")
     print(f"Promedio de superficie: {total_s // len(paises)} km²")
+
     print("\nPaíses por continente:")
     for cont, cant in conteo.items():
         print(f"- {cont}: {cant}")
